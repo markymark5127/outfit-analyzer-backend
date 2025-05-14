@@ -13,6 +13,7 @@ client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 @app.route('/analyze', methods=['POST'])
 def analyze():
     images = []
+
     for key in request.files:
         file = request.files[key]
         temp_path = tempfile.mktemp(suffix='.jpg')
@@ -20,6 +21,11 @@ def analyze():
         with open(temp_path, "rb") as f:
             encoded = b64encode(f.read()).decode('utf-8')
             images.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{encoded}"}})
+
+    if len(images) == 0:
+        return jsonify({"result": "No images received."}), 400
+    elif len(images) > 5:
+        return jsonify({"result": "You can upload up to 5 images only."}), 400
 
     try:
         response = client.chat.completions.create(
