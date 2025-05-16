@@ -5,7 +5,6 @@ from typing import List
 from base64 import b64encode
 import openai
 import os
-import json
 
 app = FastAPI()
 
@@ -26,8 +25,6 @@ def root():
 
 @app.post("/analyze")
 async def analyze(images: List[UploadFile] = File(...)):
-    print("📸 Received analyze request")
-
     if not images:
         return JSONResponse(status_code=400, content={"result": "No images received."})
     if len(images) > 3:
@@ -45,7 +42,7 @@ async def analyze(images: List[UploadFile] = File(...)):
         })
 
     try:
-        # Step 1: Ask GPT-4o to analyze the outfit
+        # Step 1: Analyze the outfit
         analysis_response = openai.chat.completions.create(
             model="gpt-4o",
             messages=[
@@ -60,53 +57,36 @@ async def analyze(images: List[UploadFile] = File(...)):
         )
 
         result_text = analysis_response.choices[0].message.content
-        print("🧠 GPT Analysis:", result_text)
-
         match_status = "matched" if "match" in result_text.lower() and "don’t" not in result_text.lower() else "not matched"
 
-        # Attempt to identify an item to build a product link around
+        # Extract a key item from the analysis result
         keywords = ["blazer", "shoes", "jeans", "jacket", "dress", "hat", "shirt", "coat", "sneakers", "turtleneck"]
         highlighted_item = next((kw for kw in keywords if kw in result_text.lower()), "jacket")
 
-        # Step 2: Ask GPT-4o for an affiliate product
+        # Step 2: Ask GPT for a product link
         product_prompt = (
-            f"Give me a stylish Amazon product suggestion for a {highlighted_item}. "
-            f"Respond ONLY in this exact JSON format:\n"
-            "{\n"
-            "  \"name\": \"Product Name\",\n"
-            "  \"imageUrl\": \"Image URL\",\n"
-            "  \"affiliateUrl\": \"https://www.amazon.com/your-product-url?tag=stylesyncapp-20\"\n"
-            "}\n"
-            "Make sure the affiliateUrl includes the tag 'stylesyncapp-20'."
+            f"Give me an Amazon product link that matches a {highlighted_item}. "
+            f"Only return the URL and make sure it includes the affiliate tag stylesyncapp-20."
         )
 
         product_response = openai.chat.completions.create(
             model="gpt-4o",
-            messages=[
-                {"role": "user", "content": product_prompt}
-            ],
-            max_tokens=300
+            messages=[{"role": "user", "content": product_prompt}],
+            max_tokens=100
         )
 
-        product_text = product_response.choices[0].message.content.strip()
-        print("🛒 GPT Product Suggestion:", product_text)
+        raw_url = product_response.choices[0].message.content.strip()
 
-        try:
-            suggested_product = json.loads(product_text)
-        except json.JSONDecodeError:
-            suggested_product = {
-                "name": f"Suggested {highlighted_item.title()}",
-                "imageUrl": "",
-                "affiliateUrl": f"https://www.amazon.com/s?k={highlighted_item.replace(' ', '+')}&tag=stylesyncapp-20"
-            }
+        # Basic fallback if it's not a valid URL
+        if not raw_url.startswith("https://"):
+            raw_url = f"https://www.amazon.com/s?k={highlighted_item.replace(' ', '+')}&tag=stylesyncapp-20"
 
         return {
             "result": result_text,
             "matchStatus": match_status,
             "highlightedItem": highlighted_item,
-            "suggestedProduct": suggested_product
+            "affiliateUrl": raw_url
         }
 
     except Exception as e:
-        print("❌ Error:", e)
         return JSONResponse(status_code=500, content={"result": f"Error: {str(e)}"})
