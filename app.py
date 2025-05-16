@@ -45,10 +45,15 @@ def add_affiliate_tag(url: str) -> str:
 
     
 def remove_urls(text: str) -> str:
-    # This pattern matches most http/https URLs
+    # Remove markdown-style links [text](url)
+    text = re.sub(r'\[([^\]]+)\]\((https?://[^\s\)]+)\)', r'\1', text)
+
+    # Remove any remaining raw URLs
     url_pattern = r'https?://[^\s\)\]\}]+'
     cleaned_text = re.sub(url_pattern, '', text)
+
     return cleaned_text.strip()
+
 
 
 @app.get("/")
