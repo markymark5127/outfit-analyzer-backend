@@ -25,8 +25,8 @@ import re
 from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 
 def extract_amazon_url(text: str) -> str:
-    # Match up to but not including closing punctuation
-    pattern = r"https:\/\/www\.amazon\.com\/(?:[^ \n\r\t\"\'<>]*)"
+    # Match an Amazon URL and exclude common trailing punctuation like ).]}
+    pattern = r"https:\/\/www\.amazon\.com\/[^\s\)\]\}\.]+"
     match = re.search(pattern, text)
     return match.group(0).strip() if match else ""
 
