@@ -34,6 +34,13 @@ def add_affiliate_tag(url: str) -> str:
 def extract_amazon_url(text: str) -> str:
     match = re.search(r"https:\/\/www\.amazon\.com\/[^\s]+", text)
     return match.group(0).strip() if match else ""
+    
+def remove_urls(text: str) -> str:
+    # This pattern matches most http/https URLs
+    url_pattern = r'https?://[^\s\)\]\}]+'
+    cleaned_text = re.sub(url_pattern, '', text)
+    return cleaned_text.strip()
+
 
 @app.get("/")
 def root():
@@ -65,7 +72,7 @@ async def analyze(images: List[UploadFile] = File(...)):
                 {
                     "role": "user",
                     "content": [
-                        {"type": "text", "text": "Do these clothes match? If they do, say so. If they don’t, suggest one item to add or replace and why."}
+                        {"type": "text", "text": "Do these clothes match? If they do, say so and give one link to one item on http://www.amazon.com that would go with the outfit. If they don’t, suggest one item to add or replace and link to one alternative product that would match on http://www.amazon.com"}
                     ] + image_payloads
                 }
             ],
@@ -78,20 +85,7 @@ async def analyze(images: List[UploadFile] = File(...)):
         # Step 2: Extract item keyword
         keywords = ["blazer", "shoes", "jeans", "jacket", "dress", "hat", "shirt", "coat", "sneakers", "turtleneck"]
         highlighted_item = next((kw for kw in keywords if kw in result_text.lower()), "jacket")
-
-        # Step 3: Ask GPT for a product link
-        product_prompt = (
-            f"Give me a direct Amazon product URL for a stylish {highlighted_item}. "
-            f"Only return the full URL. No text, no markdown, no explanation."
-        )
-
-        product_response = openai.chat.completions.create(
-            model="gpt-4o",
-            messages=[{"role": "user", "content": product_prompt}],
-            max_tokens=100
-        )
-
-        raw_text = product_response.choices[0].message.content.strip()
+        
         extracted_url = extract_amazon_url(raw_text)
 
         if extracted_url.startswith("https://www.amazon.com/"):
@@ -100,7 +94,7 @@ async def analyze(images: List[UploadFile] = File(...)):
             affiliate_url = f"https://www.amazon.com/s?k={highlighted_item.replace(' ', '+')}&tag=stylesyncapp-20"
 
         return {
-            "result": result_text,
+            "result": remove_urls(result_text),
             "matchStatus": match_status,
             "highlightedItem": highlighted_item,
             "affiliateUrl": affiliate_url
