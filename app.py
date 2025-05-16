@@ -21,19 +21,23 @@ app.add_middleware(
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
+def extract_amazon_url(text: str) -> str:
+    match = re.search(r"https:\/\/www\.amazon\.com\/[^\s\)\]\}\'\"]+", text)
+    return match.group(0).strip() if match else ""
+
 def add_affiliate_tag(url: str) -> str:
     try:
         parsed = urlparse(url)
+        if "amazon.com" not in parsed.netloc:
+            return url  # Not an Amazon link
+        
         query = parse_qs(parsed.query)
-        query["tag"] = ["stylesyncapp-20"]
+        query["tag"] = ["stylesyncapp-20"]  # Add or replace affiliate tag
         new_query = urlencode(query, doseq=True)
-        return urlunparse(parsed._replace(query=new_query))
-    except Exception:
-        return url  # fallback to original if something fails
-
-def extract_amazon_url(text: str) -> str:
-    match = re.search(r"https:\/\/www\.amazon\.com\/[^\s]+", text)
-    return match.group(0).strip() if match else ""
+        updated_url = parsed._replace(query=new_query)
+        return urlunparse(updated_url)
+    except Exception as e:
+        return url  # Fallback if error occurs
     
 def remove_urls(text: str) -> str:
     # This pattern matches most http/https URLs
