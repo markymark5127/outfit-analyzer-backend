@@ -2,6 +2,7 @@ import os
 import tempfile
 from fastapi import FastAPI, UploadFile, File, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from openai import OpenAI
 from typing import List
 from base64 import b64encode
@@ -41,9 +42,9 @@ async def analyze(request: Request):
             })
 
     if len(image_payloads) == 0:
-        return {"result": "No images received."}, 400
+        return JSONResponse(status_code=400, content={"result": "No images received."})
     elif len(image_payloads) > 3:
-        return {"result": "You can upload up to 3 images only."}, 400
+        return JSONResponse(status_code=400, content={"result": "You can upload up to 3 images only."})
 
     try:
         response = client.chat.completions.create(
@@ -60,4 +61,4 @@ async def analyze(request: Request):
         )
         return {"result": response.choices[0].message.content}
     except Exception as e:
-        return {"result": f"Error: {str(e)}"}, 500
+        return JSONResponse(status_code=500, content={"result": f"Error: {str(e)}"})
