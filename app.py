@@ -1,6 +1,6 @@
 import os
 import tempfile
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, UploadFile, File, Request
 from fastapi.middleware.cors import CORSMiddleware
 from openai import OpenAI
 from typing import List
@@ -19,27 +19,26 @@ app.add_middleware(
 client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
 @app.post("/analyze")
-async def analyze(images: List[UploadFile] = File(...)):
-    if len(images) == 0:
-        raise HTTPException(status_code=400, detail="No images received.")
-    if len(images) > 3:
-        raise HTTPException(status_code=400, detail="You can upload up to 3 images only.")
-
+async def analyze(request: Request):
+    form = await request.form()
     image_payloads = []
-    for image in images:
-        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".jpg")
-        content = await image.read()
-        temp_file.write(content)
-        temp_file.close()
 
-        with open(temp_file.name, "rb") as f:
-            encoded = b64encode(f.read()).decode("utf-8")
+    for key in form:
+        file = form[key]
+        if isinstance(file, UploadFile):
+            content = await file.read()
+            encoded = b64encode(content).decode("utf-8")
             image_payloads.append({
                 "type": "image_url",
                 "image_url": {
                     "url": f"data:image/jpeg;base64,{encoded}"
                 }
             })
+
+    if len(image_payloads) == 0:
+        return {"result": "No images received."}, 400
+    elif len(image_payloads) > 3:
+        return {"result": "You can upload up to 3 images only."}, 400
 
     try:
         response = client.chat.completions.create(
@@ -56,4 +55,4 @@ async def analyze(images: List[UploadFile] = File(...)):
         )
         return {"result": response.choices[0].message.content}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+        return {"result": f"Error: {str(e)}"}, 500
