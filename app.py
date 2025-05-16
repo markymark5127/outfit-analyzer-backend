@@ -45,14 +45,17 @@ def add_affiliate_tag(url: str) -> str:
 
     
 def remove_urls(text: str) -> str:
-    # Remove markdown-style links [text](url)
-    text = re.sub(r'\[([^\]]+)\]\((https?://[^\s\)]+)\)', r'\1', text)
+    # Remove entire markdown links like [Amazon Link](https://...)
+    text = re.sub(r'\[.*?\]\((https?://[^\s)]+)\)', '', text)
 
     # Remove any remaining raw URLs
-    url_pattern = r'https?://[^\s\)\]\}]+'
-    cleaned_text = re.sub(url_pattern, '', text)
+    text = re.sub(r'https?://[^\s\)\]\}]+', '', text)
 
-    return cleaned_text.strip()
+    # Remove leftover punctuation like ": " at the end
+    text = re.sub(r'[:\-–—]\s*$', '', text.strip())
+
+    return text.strip()
+
 
 
 
