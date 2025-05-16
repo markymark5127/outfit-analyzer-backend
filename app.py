@@ -1,47 +1,43 @@
-import os
-import tempfile
-from flask import Flask, request, jsonify
-from flask_cors import CORS
-from openai import OpenAI
-from base64 import b64encode
+from fastapi import FastAPI, UploadFile, File
+import openai
+import base64
 
-app = Flask(__name__)
-CORS(app)
+openai.api_key = "YOUR_OPENAI_API_KEY"
 
-client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+app = FastAPI()
 
-@app.route('/analyze', methods=['POST'])
-def analyze():
-    images = []
+def encode_image_to_base64(image_file: UploadFile):
+    return base64.b64encode(image_file.file.read()).decode("utf-8")
 
-    for key in request.files:
-        file = request.files[key]
-        temp_path = tempfile.mktemp(suffix='.jpg')
-        file.save(temp_path)
-        with open(temp_path, "rb") as f:
-            encoded = b64encode(f.read()).decode('utf-8')
-            images.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{encoded}"}})
+@app.post("/analyze-outfit")
+async def analyze_outfit(images: list[UploadFile] = File(...)):
+    base64_images = [encode_image_to_base64(img) for img in images]
 
-    if len(images) == 0:
-        return jsonify({"result": "No images received."}), 400
-    elif len(images) > 5:
-        return jsonify({"result": "You can upload up to 5 images only."}), 400
+    # Compose image parts
+    vision_inputs = [
+        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img}"}} for img in base64_images
+    ]
 
-    try:
-        response = client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {
-                    "role": "user",
-                    "content": [{"type": "text", "text": "Do these clothes match? Be brief."}] + images
-                }
-            ],
-            max_tokens=200
+    # Compose prompt
+    user_prompt = {
+        "type": "text",
+        "text": (
+            "Please analyze the clothing in these photo(s). "
+            "Do the pieces match in terms of style, color coordination, and overall outfit cohesion? "
+            "If not, suggest one or two specific ways to improve the look. Keep your answer to 2-3 sentences."
         )
-        return jsonify({"result": response.choices[0].message.content})
-    except Exception as e:
-        return jsonify({"result": f"Error: {str(e)}"}), 500
+    }
 
-if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=port)
+    messages = [
+        {"role": "system", "content": "You are a fashion assistant that gives kind, concise advice about clothing style."},
+        {"role": "user", "content": vision_inputs + [user_prompt]}
+    ]
+
+    response = openai.ChatCompletion.create(
+        model="gpt-4o",
+        messages=messages,
+        max_tokens=150,
+        temperature=0.7
+    )
+
+    return {"result": response['choices'][0]['message']['content']}
