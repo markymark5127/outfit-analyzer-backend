@@ -25,26 +25,22 @@ def root():
     return {"message": "StyleSync backend is running 🚀"}
 
 @app.post("/analyze")
-async def analyze(request: Request):
-    form = await request.form()
-    image_payloads = []
-
-    for key in form:
-        file = form[key]
-        if isinstance(file, UploadFile):
-            content = await file.read()
-            encoded = b64encode(content).decode("utf-8")
-            image_payloads.append({
-                "type": "image_url",
-                "image_url": {
-                    "url": f"data:image/jpeg;base64,{encoded}"
-                }
-            })
-
-    if len(image_payloads) == 0:
+async def analyze(images: List[UploadFile] = File(...)):
+    if not images:
         return JSONResponse(status_code=400, content={"result": "No images received."})
-    elif len(image_payloads) > 3:
+    if len(images) > 3:
         return JSONResponse(status_code=400, content={"result": "You can upload up to 3 images only."})
+
+    image_payloads = []
+    for image in images:
+        content = await image.read()
+        encoded = b64encode(content).decode("utf-8")
+        image_payloads.append({
+            "type": "image_url",
+            "image_url": {
+                "url": f"data:image/jpeg;base64,{encoded}"
+            }
+        })
 
     try:
         response = client.chat.completions.create(
