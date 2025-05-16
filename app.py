@@ -51,11 +51,12 @@ def remove_urls(text: str) -> str:
     # Remove any remaining raw URLs
     text = re.sub(r'https?://[^\s\)\]\}]+', '', text)
 
-    # Remove leftover punctuation like ": " at the end
-    text = re.sub(r'[:\-–—]\s*$', '', text.strip())
+    # Remove leftover punctuation like ": " or "- " at the end of the sentence
+    text = re.sub(r'[:\-–—]+\s*$', '', text.strip())
 
-    return text.strip()
-
+    # Ensure text ends with a single period
+    text = text.rstrip('.')
+    return text.strip() + '.'
 
 
 
