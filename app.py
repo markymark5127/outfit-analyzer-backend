@@ -8,6 +8,7 @@ from base64 import b64encode
 
 app = FastAPI()
 
+# Allow requests from all origins (adjust for production)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -17,6 +18,10 @@ app.add_middleware(
 )
 
 client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+
+@app.get("/")
+def root():
+    return {"message": "StyleSync backend is running 🚀"}
 
 @app.post("/analyze")
 async def analyze(request: Request):
