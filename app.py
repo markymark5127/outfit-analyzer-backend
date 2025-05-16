@@ -26,6 +26,7 @@ def root():
 
 @app.post("/analyze")
 async def analyze(images: List[UploadFile] = File(...)):
+    print("Received analyze request")
     if not images:
         return JSONResponse(status_code=400, content={"result": "No images received."})
     if len(images) > 3:
