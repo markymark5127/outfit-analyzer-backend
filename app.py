@@ -1,3 +1,4 @@
+
 from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -5,6 +6,7 @@ from typing import List
 from base64 import b64encode
 import openai
 import os
+from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 
 app = FastAPI()
 
@@ -18,6 +20,16 @@ app.add_middleware(
 )
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
+
+def add_affiliate_tag(url: str) -> str:
+    try:
+        parsed = urlparse(url)
+        query = parse_qs(parsed.query)
+        query["tag"] = ["stylesyncapp-20"]
+        new_query = urlencode(query, doseq=True)
+        return urlunparse(parsed._replace(query=new_query))
+    except Exception:
+        return url  # fallback to original if something fails
 
 @app.get("/")
 def root():
@@ -65,8 +77,8 @@ async def analyze(images: List[UploadFile] = File(...)):
 
         # Step 2: Ask GPT for a product link
         product_prompt = (
-            f"Give me an Amazon product link that matches a {highlighted_item}. "
-            f"Only return the URL and make sure it includes the affiliate tag stylesyncapp-20."
+            f"Give me a direct Amazon product URL for a stylish {highlighted_item}. "
+            f"Only return the full URL with no formatting, description, or explanation."
         )
 
         product_response = openai.chat.completions.create(
@@ -77,15 +89,16 @@ async def analyze(images: List[UploadFile] = File(...)):
 
         raw_url = product_response.choices[0].message.content.strip()
 
-        # Basic fallback if it's not a valid URL
-        if not raw_url.startswith("https://"):
-            raw_url = f"https://www.amazon.com/s?k={highlighted_item.replace(' ', '+')}&tag=stylesyncapp-20"
+        if raw_url.startswith("https://www.amazon.com/"):
+            affiliate_url = add_affiliate_tag(raw_url)
+        else:
+            affiliate_url = f"https://www.amazon.com/s?k={highlighted_item.replace(' ', '+')}&tag=stylesyncapp-20"
 
         return {
             "result": result_text,
             "matchStatus": match_status,
             "highlightedItem": highlighted_item,
-            "affiliateUrl": raw_url
+            "affiliateUrl": affiliate_url
         }
 
     except Exception as e:
