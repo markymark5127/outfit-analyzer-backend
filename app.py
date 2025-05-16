@@ -86,7 +86,7 @@ async def analyze(images: List[UploadFile] = File(...)):
         keywords = ["blazer", "shoes", "jeans", "jacket", "dress", "hat", "shirt", "coat", "sneakers", "turtleneck"]
         highlighted_item = next((kw for kw in keywords if kw in result_text.lower()), "jacket")
         
-        extracted_url = extract_amazon_url(raw_text)
+        extracted_url = extract_amazon_url(result_text)
 
         if extracted_url.startswith("https://www.amazon.com/"):
             affiliate_url = add_affiliate_tag(extracted_url)
