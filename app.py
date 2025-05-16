@@ -1,43 +1,59 @@
-from fastapi import FastAPI, UploadFile, File
-import openai
-import base64
-
-openai.api_key = "YOUR_OPENAI_API_KEY"
+import os
+import tempfile
+from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from openai import OpenAI
+from typing import List
+from base64 import b64encode
 
 app = FastAPI()
 
-def encode_image_to_base64(image_file: UploadFile):
-    return base64.b64encode(image_file.file.read()).decode("utf-8")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-@app.post("/analyze-outfit")
-async def analyze_outfit(images: list[UploadFile] = File(...)):
-    base64_images = [encode_image_to_base64(img) for img in images]
+client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
-    # Compose image parts
-    vision_inputs = [
-        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img}"}} for img in base64_images
-    ]
+@app.post("/analyze")
+async def analyze(images: List[UploadFile] = File(...)):
+    if len(images) == 0:
+        raise HTTPException(status_code=400, detail="No images received.")
+    if len(images) > 3:
+        raise HTTPException(status_code=400, detail="You can upload up to 3 images only.")
 
-    # Compose prompt
-    user_prompt = {
-        "type": "text",
-        "text": (
-            "Please analyze the clothing in these photo(s). "
-            "Do the pieces match in terms of style, color coordination, and overall outfit cohesion? "
-            "If not, suggest one or two specific ways to improve the look. Keep your answer to 2-3 sentences."
+    image_payloads = []
+    for image in images:
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".jpg")
+        content = await image.read()
+        temp_file.write(content)
+        temp_file.close()
+
+        with open(temp_file.name, "rb") as f:
+            encoded = b64encode(f.read()).decode("utf-8")
+            image_payloads.append({
+                "type": "image_url",
+                "image_url": {
+                    "url": f"data:image/jpeg;base64,{encoded}"
+                }
+            })
+
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": "Do these clothes match? Be brief and concise."}
+                    ] + image_payloads
+                }
+            ],
+            max_tokens=150
         )
-    }
-
-    messages = [
-        {"role": "system", "content": "You are a fashion assistant that gives kind, concise advice about clothing style."},
-        {"role": "user", "content": vision_inputs + [user_prompt]}
-    ]
-
-    response = openai.ChatCompletion.create(
-        model="gpt-4o",
-        messages=messages,
-        max_tokens=150,
-        temperature=0.7
-    )
-
-    return {"result": response['choices'][0]['message']['content']}
+        return {"result": response.choices[0].message.content}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
