@@ -90,6 +90,7 @@ async def analyze(images: List[UploadFile] = File(...)):
 
         result_text = analysis_response.choices[0].message.content.strip()
         match_status = "matched" if "match" in result_text.lower() and "don’t" not in result_text.lower() else "not matched"
+        print(result_text)
 
         # Step 2: Extract item keyword
         keywords = ["blazer", "shoes", "jeans", "jacket", "dress", "hat", "shirt", "coat", "sneakers", "turtleneck"]
