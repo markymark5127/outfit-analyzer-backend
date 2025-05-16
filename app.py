@@ -1,4 +1,3 @@
-
 from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -7,6 +6,7 @@ from base64 import b64encode
 import openai
 import os
 from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
+import re
 
 app = FastAPI()
 
@@ -31,6 +31,10 @@ def add_affiliate_tag(url: str) -> str:
     except Exception:
         return url  # fallback to original if something fails
 
+def extract_amazon_url(text: str) -> str:
+    match = re.search(r"https:\/\/www\.amazon\.com\/[^\s]+", text)
+    return match.group(0).strip() if match else ""
+
 @app.get("/")
 def root():
     return {"message": "StyleSync backend is running 🚀"}
@@ -54,7 +58,7 @@ async def analyze(images: List[UploadFile] = File(...)):
         })
 
     try:
-        # Step 1: Analyze the outfit
+        # Step 1: Outfit analysis
         analysis_response = openai.chat.completions.create(
             model="gpt-4o",
             messages=[
@@ -68,17 +72,17 @@ async def analyze(images: List[UploadFile] = File(...)):
             max_tokens=300
         )
 
-        result_text = analysis_response.choices[0].message.content
+        result_text = analysis_response.choices[0].message.content.strip()
         match_status = "matched" if "match" in result_text.lower() and "don’t" not in result_text.lower() else "not matched"
 
-        # Extract a key item from the analysis result
+        # Step 2: Extract item keyword
         keywords = ["blazer", "shoes", "jeans", "jacket", "dress", "hat", "shirt", "coat", "sneakers", "turtleneck"]
         highlighted_item = next((kw for kw in keywords if kw in result_text.lower()), "jacket")
 
-        # Step 2: Ask GPT for a product link
+        # Step 3: Ask GPT for a product link
         product_prompt = (
             f"Give me a direct Amazon product URL for a stylish {highlighted_item}. "
-            f"Only return the full URL with no formatting, description, or explanation."
+            f"Only return the full URL. No text, no markdown, no explanation."
         )
 
         product_response = openai.chat.completions.create(
@@ -87,10 +91,11 @@ async def analyze(images: List[UploadFile] = File(...)):
             max_tokens=100
         )
 
-        raw_url = product_response.choices[0].message.content.strip()
+        raw_text = product_response.choices[0].message.content.strip()
+        extracted_url = extract_amazon_url(raw_text)
 
-        if raw_url.startswith("https://www.amazon.com/"):
-            affiliate_url = add_affiliate_tag(raw_url)
+        if extracted_url.startswith("https://www.amazon.com/"):
+            affiliate_url = add_affiliate_tag(extracted_url)
         else:
             affiliate_url = f"https://www.amazon.com/s?k={highlighted_item.replace(' ', '+')}&tag=stylesyncapp-20"
 
