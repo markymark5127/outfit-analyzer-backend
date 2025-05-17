@@ -94,7 +94,7 @@ async def analyze(images: List[UploadFile] = File(...)):
                 {
                     "role": "user",
                     "content": [
-                        {"type": "text", "text": "Do these clothes match? Give an Amazon Search link with a suggested item to add or replace(if the outfit doesnt match) ito the outfit. Give a one sentence response with an amazon link no other text."}
+                        {"type": "text", "text": "Do these clothes match?Say either \"Match\" or \"Doesn't Match\". Give an Amazon Search link with a suggested item to add or replace (replace if the outfit doesnt match). Give a one sentence response with an amazon link no other text."}
                     ] + image_payloads
                 }
             ],
@@ -102,7 +102,7 @@ async def analyze(images: List[UploadFile] = File(...)):
         )
 
         result_text = analysis_response.choices[0].message.content.strip()
-        match_status = "matched" if "match" in result_text.lower() and "don’t" not in result_text.lower() else "not matched"
+        match_status = "matched" if "match" in result_text.lower() and "doesn't" not in result_text.lower() else "not matched"
         print(result_text)
 
         # Step 2: Extract item keyword
