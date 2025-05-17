@@ -77,10 +77,11 @@ async def analyze(images: List[UploadFile] = File(...)):
                 {
                     "role": "system",
                     "content": (
-                        "You are an outfit stylist. Respond in exactly 3 lines:\n"
-                        "Line 1: 'Match' or 'Doesn't Match'\n"
-                        "Line 2: A short sentence suggesting one item to add or improve.\n"
-                        "Line 3: A plain Amazon search URL that matches the item mentioned. Do not use markdown."
+                        "You're a stylist. Analyze the outfits in the uploaded images.\n"
+                        "Reply in 3 lines:\n"
+                        "1: 'Match' or 'Doesn't Match'\n"
+                        "2: In one short sentence, suggest one item to improve the outfit.\n"
+                        "3: Plain Amazon search URL for that item (no markdown, no punctuation)"
                     )
                 },
                 {
@@ -104,7 +105,7 @@ async def analyze(images: List[UploadFile] = File(...)):
         sentence_line = lines[1]
         affiliate_url_raw = lines[2]
 
-        match_status = "matched" if "match" in match_line.lower() and "doesn't" not in match_line.lower() else "not matched"
+        match_status = "match" if "match" in match_line.lower() and "doesn't" not in match_line.lower() else "doesn't match"
 
         # Extract clean item suggestion and build affiliate URL
         suggested_item = extract_suggested_item_text(sentence_line)
