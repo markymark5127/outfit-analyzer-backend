@@ -63,6 +63,10 @@ def remove_urls(text: str) -> str:
 @app.get("/")
 def root():
     return {"message": "StyleSync backend is running 🚀"}
+    
+@app.get("/ping")
+def ping():
+    return {"message": "pong"}
 
 @app.post("/analyze")
 async def analyze(images: List[UploadFile] = File(...)):
