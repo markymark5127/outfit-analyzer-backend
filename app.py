@@ -78,9 +78,9 @@ async def analyze(images: List[UploadFile] = File(...)):
                     "role": "system",
                     "content": (
                         "You are an outfit stylist. Respond in exactly 3 lines:\n"
-                        "1. 'Match' or 'Doesn't Match'\n"
-                        "2. A short sentence suggesting a clothing item to improve the outfit\n"
-                        "3. A plain Amazon search URL that searches for the item suggested in line 2. Do not use markdown. Do not add any extra commentary or explanation."
+                        "Line 1: 'Match' or 'Doesn't Match'\n"
+                        "Line 2: A short sentence suggesting one item to add or improve.\n"
+                        "Line 3: A plain Amazon search URL that matches the item mentioned. Do not use markdown."
                     )
                 },
                 {
@@ -94,13 +94,15 @@ async def analyze(images: List[UploadFile] = File(...)):
         result_text = response.choices[0].message.content.strip()
         print("[AI Response]\n" + result_text)
 
-        lines = result_text.splitlines()
+        # Defensive parsing
+        lines = [line.strip() for line in result_text.splitlines() if line.strip()]
         if len(lines) < 3:
+            print("[ERROR] Incomplete or malformed response from AI.")
             return JSONResponse(status_code=500, content={"result": "Incomplete response from AI."})
 
-        match_line = lines[0].strip()
-        sentence_line = lines[1].strip()
-        affiliate_url_raw = "\n".join(lines[2:]).strip()
+        match_line = lines[0]
+        sentence_line = lines[1]
+        affiliate_url_raw = lines[2]
 
         match_status = "matched" if "match" in match_line.lower() and "doesn't" not in match_line.lower() else "not matched"
 
