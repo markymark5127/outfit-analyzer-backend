@@ -114,7 +114,6 @@ async def analyze(images: List[UploadFile] = File(...)):
         return {
             "result": sentence_line,
             "matchStatus": match_status,
-            "highlightedItem": suggested_item,
             "affiliateUrl": affiliate_url
         }
 
