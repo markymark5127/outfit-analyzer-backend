@@ -94,7 +94,7 @@ async def analyze(images: List[UploadFile] = File(...)):
                 {
                     "role": "user",
                     "content": [
-                        {"type": "text", "text": "Do these clothes match? Say either \"Match\" or \"Doesn't Match\". Give an Amazon Search link with a suggested item to add or replace (replace if the outfit doesnt match). Give a one sentence response explaining your suggested amazon search with an amazon link no other text."}
+                        {"type": "text", "text": "Do these clothes match? Say either \"Match\" or \"Doesn't Match\". Give an Amazon Search link with a suggested item to add or replace (replace if the outfit doesnt match). Additionally, give a one sentence response explaining your suggested amazon search. No other text."}
                     ] + image_payloads
                 }
             ],
